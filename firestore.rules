@@ -1,0 +1,87 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitive Definitions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Client Validation
+    function isValidClient(data, isUpdate) {
+      return data.keys().hasAll(['name', 'phone', 'ownerId', 'createdAt', 'updatedAt']) &&
+             data.keys().size() == 5 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.phone is string && data.phone.size() >= 5 && data.phone.size() <= 20 &&
+             data.ownerId == request.auth.uid &&
+             (isUpdate ? true : (data.createdAt == request.time && data.updatedAt == request.time));
+    }
+
+    // Transaction Validation
+    function isValidTransaction(data, isUpdate) {
+      return data.keys().hasAll(['clientId', 'type', 'amount', 'totalAmount', 'paidAmount', 'description', 'date', 'pictureCount', 'paymentMethod', 'ownerId', 'createdAt']) &&
+             data.clientId is string &&
+             data.type in ['credit', 'debit'] &&
+             data.amount is number &&
+             data.totalAmount is number &&
+             data.paidAmount is number &&
+             data.description is string && data.description.size() <= 500 &&
+             data.date is string &&
+             data.pictureCount is number &&
+             data.paymentMethod in ['cash', 'transfer'] &&
+             data.ownerId == request.auth.uid &&
+             (isUpdate ? true : data.createdAt == request.time);
+    }
+
+    match /clients/{clientId} {
+      allow get: if isOwner(existing().ownerId);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isSignedIn() && isValidClient(incoming(), false);
+      
+      allow update: if isOwner(existing().ownerId) && 
+                      isValidClient(incoming(), true) &&
+                      incoming().ownerId == existing().ownerId &&
+                      incoming().createdAt == existing().createdAt;
+      
+      allow delete: if isOwner(existing().ownerId);
+    }
+
+    match /transactions/{transactionId} {
+      allow get: if isOwner(existing().ownerId);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isSignedIn() && 
+                      isValidTransaction(incoming(), false) &&
+                      exists(/databases/$(database)/documents/clients/$(incoming().clientId));
+      
+      allow update: if isOwner(existing().ownerId) && 
+                      isValidTransaction(incoming(), true) &&
+                      incoming().ownerId == existing().ownerId &&
+                      incoming().createdAt == existing().createdAt;
+      
+      allow delete: if isOwner(existing().ownerId);
+    }
+  }
+}

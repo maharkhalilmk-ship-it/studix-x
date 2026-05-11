@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "Client": {
+      "title": "Client",
+      "description": "Studio client details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the client" },
+        "phone": { "type": "string", "description": "Phone number of the client" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Record creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" },
+        "ownerId": { "type": "string", "description": "Owner user ID" }
+      },
+      "required": ["name", "phone", "ownerId"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial transaction record",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "description": "Reference to a Client document ID" },
+        "type": { "type": "string", "enum": ["credit", "debit"], "description": "Transaction category" },
+        "amount": { "type": "number", "description": "Net amount for this transaction" },
+        "totalAmount": { "type": "number", "description": "Total agreed price for the work" },
+        "paidAmount": { "type": "number", "description": "Amount already paid by client" },
+        "description": { "type": "string", "description": "Details of the transaction" },
+        "date": { "type": "string", "format": "date", "description": "Transaction date" },
+        "pictureCount": { "type": "number", "description": "Number of pictures associated" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "transfer"], "description": "Payment type" },
+        "ownerId": { "type": "string", "description": "Owner user ID" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Record creation timestamp" }
+      },
+      "required": ["clientId", "type", "amount", "ownerId", "date"]
+    }
+  },
+  "firestore": {
+    "clients": {
+      "schema": "Client",
+      "description": "Collection of studio clients"
+    },
+    "transactions": {
+      "schema": "Transaction",
+      "description": "Collection of all studio transactions"
+    }
+  }
+}
